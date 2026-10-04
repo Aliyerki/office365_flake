@@ -169,12 +169,21 @@ apply_tricks() {
 # Office recursion, same on GE-Proton 11-6 and 11-7); 180 renders and behaves fine.
 wine_dpi() {
   if [ -n "${MS365_DPI:-}" ]; then echo "$MS365_DPI"; return; fi
-  if [ "${MS365_WAYLAND:-1}" = 1 ] && [ -n "${WAYLAND_DISPLAY:-}" ] && command -v swaymsg >/dev/null 2>&1; then
-    swaymsg -t get_outputs 2>/dev/null | python3 -c '
+  if [ "${MS365_WAYLAND:-1}" = 1 ] && [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    if command -v kscreen-doctor >/dev/null 2>&1; then
+      local scale
+      scale=$(kscreen-doctor -o 2>/dev/null | grep -i "scale:" | head -n1 | awk '{print $NF}')
+      if [ -n "$scale" ]; then
+        python3 -c "import sys; print(min(180, int(round(96 * float('$scale')))))" 2>/dev/null && return
+      fi
+    fi
+    if command -v swaymsg >/dev/null 2>&1; then
+      swaymsg -t get_outputs 2>/dev/null | python3 -c '
 import json, sys
 outs = json.load(sys.stdin)
 o = next((o for o in outs if o.get("focused")), outs[0] if outs else {})
 print(min(180, int(round(96 * float(o.get("scale", 1))))))' 2>/dev/null && return
+    fi
   fi
   echo 96
 }
@@ -198,7 +207,7 @@ default_save_dir() {
 }
 
 # bump when apply_registry changes so existing prefixes pick the new tweaks up on the next run
-REGISTRY_REV=8
+REGISTRY_REV=9
 SHIMS_REV=sppc,ole32,uia,d2d1,appinit,ink,webhttp   # bump when install_shims gains a DLL or an override
 apply_registry() {
   mkdir -p "$ODT_DIR"
@@ -219,11 +228,12 @@ Windows Registry Editor Version 5.00
 ; MSIX add-ons in its LastRun task. With the library unavailable Office logs an error and moves on.
 ; Wine's hvsimanagementapi (Windows Sandbox host) is a stub answering E_NOTIMPL; the Click-to-Run
 ; client turns that into a fatal exception when it applies product changes. Absent, it is skipped.
-[HKEY_CURRENT_USER\Software\Wine\Fonts\Replacements]
-"Segoe UI"="Selawik"
-"Segoe UI Semibold"="Selawik Semibold"
-"Segoe UI Semilight"="Selawik Semilight"
-"Segoe UI Light"="Selawik Light"
+; Font smoothing (ClearType subpixel RGB antialiasing)
+[HKEY_CURRENT_USER\Control Panel\Desktop]
+"FontSmoothing"="2"
+"FontSmoothingType"=dword:00000002
+"FontSmoothingOrientation"=dword:00000001
+"FontSmoothingGamma"=dword:00000578
 
 [HKEY_CURRENT_USER\Software\Wine\DllOverrides]
 "appxdeploymentclient"=""
@@ -537,6 +547,7 @@ post_install_fixups() {
   for f in "AppvIsvSubsystems$bits.dll" "C2R$bits.dll"; do
     if [ -f "$C2R_DIR/$f" ] && [ ! -f "$OFFICE_ROOT/$f" ]; then
       log "Copying $f into Office16"
+      mkdir -p "$OFFICE_ROOT"
       cp -f "$C2R_DIR/$f" "$OFFICE_ROOT/$f"
     fi
   done
@@ -638,12 +649,7 @@ cmd_run() {
     log "restoring vNext licensing mode for $MS365_PRODUCT"
     apply_registry
   fi
-  # A Proton prefix update (e.g. after switching runners) restores its template's font replacements,
-  # which map Segoe UI back to Times New Roman.
-  if [ -n "${MS365_UI_FONTS:-}" ] && ! grep -aqF '"Segoe UI"="Selawik"' "$root/user.reg" 2>/dev/null; then
-    log "restoring the Segoe UI -> Selawik font mapping"
-    apply_registry
-  fi
+
   if [ "$(cat "$MS365_PREFIX/.ms365-msi-components" 2>/dev/null)" != "$MSI_COMPONENTS_REV" ]; then register_msi_components; fi
   if [ "$(cat "$MS365_PREFIX/.ms365-msforms" 2>/dev/null)" != "$MSFORMS_REV" ]; then register_msforms; fi
   apply_dpi
@@ -693,7 +699,7 @@ cmd_kill() {
     n=0
     for p in /proc/[0-9]*; do
       [ -r "$p/environ" ] || continue
-      if tr '\0' '\n' 2>/dev/null < "$p/environ" | grep -q "^WINEPREFIX=$MS365_PREFIX\$"; then
+      if tr '\0' '\n' 2>/dev/null < "$p/environ" | grep -q "^WINEPREFIX=$MS365_PREFIX"; then
         kill "-$sig" "${p#/proc/}" 2>/dev/null && n=$((n+1))
       fi
     done
