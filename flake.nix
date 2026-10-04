@@ -107,7 +107,7 @@
       office2024 = pkgs.callPackage ./ms365.nix (launcherDeps // {
         cliName = "office2024";
         description = "Run Office Home 2024 (retail) through umu-launcher and GE-Proton";
-        desktopSuffix = " 2024 (Proton)";
+        desktopSuffix = " 2024";
         only = [ "word" "excel" "powerpoint" "onenote" ];
         defaults = {
           MS365_HOME = "$HOME/.local/share/office2024";

@@ -21,7 +21,7 @@
   # (e.g. a retail Office 2024 SKU in its own prefix next to Microsoft 365).
 , cliName ? "ms365"
 , description ? "Run Microsoft 365 click-to-run Office through umu-launcher and GE-Proton"
-, desktopSuffix ? " (Proton)"     # appended to each .desktop entry's name
+, desktopSuffix ? ""              # appended to each .desktop entry's name (empty for clean native names)
 , only ? null                     # null = every app below; else a list of app keys to ship wrappers for
 , defaults ? { }                  # MS365_* defaults baked in; the environment still overrides them
 }:
