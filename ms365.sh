@@ -170,9 +170,13 @@ apply_tricks() {
 wine_dpi() {
   if [ -n "${MS365_DPI:-}" ]; then echo "$MS365_DPI"; return; fi
   if [ "${MS365_WAYLAND:-1}" = 1 ] && [ -n "${WAYLAND_DISPLAY:-}" ]; then
-    if command -v kscreen-doctor >/dev/null 2>&1; then
+    local ksd=""
+    for candidate in kscreen-doctor /usr/bin/kscreen-doctor /run/current-system/sw/bin/kscreen-doctor; do
+      if command -v "$candidate" >/dev/null 2>&1; then ksd="$candidate"; break; fi
+    done
+    if [ -n "$ksd" ]; then
       local scale
-      scale=$(kscreen-doctor -o 2>/dev/null | grep -i "scale:" | head -n1 | awk '{print $NF}')
+      scale=$("$ksd" -o 2>/dev/null | grep -i "scale:" | head -n1 | awk '{print $NF}')
       if [ -n "$scale" ]; then
         python3 -c "import sys; print(min(180, int(round(96 * float('$scale')))))" 2>/dev/null && return
       fi
@@ -185,7 +189,7 @@ o = next((o for o in outs if o.get("focused")), outs[0] if outs else {})
 print(min(180, int(round(96 * float(o.get("scale", 1))))))' 2>/dev/null && return
     fi
   fi
-  echo 96
+  echo 144
 }
 apply_dpi() {
   local dpi; dpi="$(wine_dpi)"

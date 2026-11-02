@@ -46,6 +46,7 @@ let
     runtimeInputs = [ umu-launcher curl coreutils gnused python3 ];
     text = ''
       : "''${MS365_CLI:=${cliName}}"
+      : "''${MS365_DPI:=144}"
       ${defaultsSh}
       MS365_PROTON_GE=${protonGE}
       MS365_PROTOSODA=${protosoda}
@@ -57,7 +58,7 @@ let
       MS365_MSI_COMPONENTS=${./msi-components.py}
       MS365_UI_FONTS=${selawik}
       MS365_MESA=${mesa}
-      export MS365_UI_FONTS MS365_MESA MS365_PROTON_GE MS365_PROTOSODA MS365_SPPC_SHIM MS365_OLE32_SHIM_GE MS365_OLE32_SHIM_SODA MS365_UIA_SHIM MS365_D2D1_DLL MS365_MSI_COMPONENTS
+      export MS365_DPI MS365_UI_FONTS MS365_MESA MS365_PROTON_GE MS365_PROTOSODA MS365_SPPC_SHIM MS365_OLE32_SHIM_GE MS365_OLE32_SHIM_SODA MS365_UIA_SHIM MS365_D2D1_DLL MS365_MSI_COMPONENTS
       ${builtins.readFile ./ms365.sh}
     '';
   };
